@@ -1,0 +1,8 @@
+_extensions:
+- jinja2_time.TimeExtension
+_template: git@github.com:Opus10/public-django-app-template.git
+_version: a912e2e514f3da5d681f22b5040b5bdf237d47de
+module_name: pgtransaction
+repo_name: django-pgtransaction
+short_description: A context manager/decorator which extends Django's atomic function
+  with the ability to set isolation level and retries for a given transaction.
