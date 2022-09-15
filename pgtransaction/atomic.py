@@ -26,26 +26,33 @@ class PGAtomic(Atomic):
         self._validate()
 
     def _validate(self):
-        if self.connection.vendor != 'postgresql':  # pragma: no cover
+        if self.connection.vendor != "postgresql":  # pragma: no cover
             raise PGAtomicConfigurationError(
-                f'pgtransaction.atomic cannot be used with {self.connection.vendor}')
+                f"pgtransaction.atomic cannot be used with {self.connection.vendor}"
+            )
         if self.isolation_level and self.isolation_level.upper() not in (
-            'READ COMMITTED', 'REPEATABLE READ', 'SERIALIZABLE'):  # pragma: no cover
+            "READ COMMITTED",
+            "REPEATABLE READ",
+            "SERIALIZABLE",
+        ):  # pragma: no cover
             raise PGAtomicConfigurationError(
-                f'Isolation level {self.isolation_level} not recognised')
+                f"Isolation level {self.isolation_level} not recognised"
+            )
         if self.isolation_level and self.connection.in_atomic_block:
             raise PGAtomicConfigurationError(
-                'Setting the isolation level inside in a nested atomic '
-                'transaction is not permitted. Nested atomic transactions '
-                'inherit the isolation level from their parent transaction '
-                'automatically.'
+                "Setting the isolation level inside in a nested atomic "
+                "transaction is not permitted. Nested atomic transactions "
+                "inherit the isolation level from their parent transaction "
+                "automatically."
             )
         if self.retry and self.connection.in_atomic_block:  # pragma: no cover
             raise PGAtomicConfigurationError(
-                'Retries are not permitted within a nested atomic transaction')
+                "Retries are not permitted within a nested atomic transaction"
+            )
 
     def __call__(self, func):
         self._used_as_context_manager = False
+
         @wraps(func)
         def inner(*args, **kwds):
             inst = self._recreate_cm()
@@ -63,22 +70,25 @@ class PGAtomic(Atomic):
                         self.__exit__(
                             psycopg2.errors.SerializationFailure,
                             error,
-                            '',
+                            "",
                         )
                     else:
                         raise
             return inner(*args, **kwds)
+
         return inner
 
     def __enter__(self):
         if self.retry != 0 and self._used_as_context_manager:
             raise PGAtomicConfigurationError(
-                'Cannot use pgtransaction.atomic as a context manager '
-                'when retry is non-zero. Use as a decorator instead.')
+                "Cannot use pgtransaction.atomic as a context manager "
+                "when retry is non-zero. Use as a decorator instead."
+            )
         super().__enter__()
         if self.isolation_level:
             self.connection.cursor().execute(
-                f'SET TRANSACTION ISOLATION LEVEL {self.isolation_level.upper()}')
+                f"SET TRANSACTION ISOLATION LEVEL {self.isolation_level.upper()}"
+            )
 
 
 def atomic(

@@ -40,20 +40,22 @@ def test_atomic_serializable():
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_decorator():
-    @atomic(isolation_level='REPEATABLE READ')
+    @atomic(isolation_level="REPEATABLE READ")
     def f():
         ddf.G(Trade)
+
     f()
     assert 1 == Trade.objects.count()
 
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_decorator_with_args():
-    @atomic(isolation_level='REPEATABLE READ')
+    @atomic(isolation_level="REPEATABLE READ")
     def f(trade_id):
         trade = Trade.objects.get(id=trade_id)
         trade.price = 2
         trade.save()
+
     trade = ddf.G(Trade, price=1)
     f(trade.pk)
     assert 1 == Trade.objects.count()
@@ -81,6 +83,7 @@ def test_atomic_with_nested_atomic():
 def test_atomic_rollback():
     class MockError(Exception):
         pass
+
     with pytest.raises(MockError):
         with atomic(isolation_level="REPEATABLE READ"):
             ddf.G(Trade)
@@ -91,7 +94,7 @@ def test_atomic_rollback():
 @pytest.mark.django_db(transaction=True)
 def test_pg_atomic_nested_atomic_rollback():
     with atomic(isolation_level="REPEATABLE READ"):
-        trade = ddf.G(Trade, company='Coca Cola')
+        trade = ddf.G(Trade, company="Coca Cola")
         try:
             with atomic():  # pragma: no branch
                 trade.id = None
@@ -104,13 +107,13 @@ def test_pg_atomic_nested_atomic_rollback():
 @pytest.mark.django_db(transaction=True)
 def test_atomic_retries_context_manager_not_allowed():
     with pytest.raises(PGAtomicConfigurationError, match="as a context manager"):
-        with atomic(isolation_level='REPEATABLE READ', retry=1):
+        with atomic(isolation_level="REPEATABLE READ", retry=1):
             pass
 
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_retries_all_retries_fail():
-    dec = atomic(isolation_level='REPEATABLE READ', retry=2)
+    dec = atomic(isolation_level="REPEATABLE READ", retry=2)
     assert not Trade.objects.exists()
     assert 2 == dec.retry
 
@@ -128,7 +131,7 @@ def test_atomic_retries_all_retries_fail():
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_retries_decorator_first_retry_passes():
-    dec = atomic(isolation_level='REPEATABLE READ', retry=1)
+    dec = atomic(isolation_level="REPEATABLE READ", retry=1)
     assert not Trade.objects.exists()
     assert 1 == dec.retry
 
@@ -145,7 +148,7 @@ def test_atomic_retries_decorator_first_retry_passes():
 
 @pytest.mark.django_db(transaction=True)
 def test_pg_atomic_retries_with_nested_atomic_failure():
-    dec = atomic(isolation_level='REPEATABLE READ', retry=2)
+    dec = atomic(isolation_level="REPEATABLE READ", retry=2)
 
     assert not Trade.objects.exists()
     assert 2 == dec.retry
@@ -158,6 +161,7 @@ def test_pg_atomic_retries_with_nested_atomic_failure():
         def inner():
             ddf.G(Trade)
             raise psycopg2.errors.SerializationFailure
+
         try:
             inner()
         except psycopg2.errors.SerializationFailure:
@@ -170,7 +174,7 @@ def test_pg_atomic_retries_with_nested_atomic_failure():
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_retries_with_run_time_failure():
-    dec = atomic(isolation_level='REPEATABLE READ', retry=2)
+    dec = atomic(isolation_level="REPEATABLE READ", retry=2)
 
     assert not Trade.objects.exists()
     assert 2 == dec.retry
@@ -189,7 +193,7 @@ def test_atomic_retries_with_run_time_failure():
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_retries_with_nested_atomic_and_outer_retry():
-    dec = atomic(isolation_level='REPEATABLE READ', retry=1)
+    dec = atomic(isolation_level="REPEATABLE READ", retry=1)
 
     assert 0 == Trade.objects.all().count()
     assert 1 == dec.retry
@@ -201,6 +205,7 @@ def test_atomic_retries_with_nested_atomic_and_outer_retry():
         @atomic
         def inner():
             ddf.G(Trade)
+
         inner()
         if dec.retry == 1:
             raise psycopg2.errors.SerializationFailure
