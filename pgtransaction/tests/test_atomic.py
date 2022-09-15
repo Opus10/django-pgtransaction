@@ -1,3 +1,5 @@
+import ddf
+from django.db.utils import IntegrityError
 import psycopg2.errors
 import pytest
 
@@ -8,20 +10,20 @@ from pgtransaction.tests.models import Trade
 @pytest.mark.django_db(transaction=True)
 def test_atomic_read_committed():
     with atomic(isolation_level="READ COMMITTED"):
-        Trade.objects.create(company='Coca Cola', price=1)
+        ddf.G(Trade)
     assert 1 == Trade.objects.count()
 
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_repeatable_read():
     with atomic(isolation_level="REPEATABLE READ"):
-        Trade.objects.create(company='Coca Cola', price=1)
+        ddf.G(Trade)
     assert 1 == Trade.objects.count()
 
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_repeatable_read_with_select():
-    Trade.objects.create(company='Coca Cola', price=1)
+    ddf.G(Trade, price=1)
     with atomic(isolation_level="REPEATABLE READ"):
         trade = Trade.objects.last()
         trade.price = 2
@@ -32,14 +34,7 @@ def test_atomic_repeatable_read_with_select():
 @pytest.mark.django_db(transaction=True)
 def test_atomic_serializable():
     with atomic(isolation_level="SERIALIZABLE"):
-        Trade.objects.create(company='Coca Cola', price=1)
-    assert 1 == Trade.objects.count()
-
-
-@pytest.mark.django_db(transaction=True)
-def test_atomic_serializable():
-    with atomic(isolation_level="SERIALIZABLE"):
-        Trade.objects.create(company='Coca Cola', price=1)
+        ddf.G(Trade)
     assert 1 == Trade.objects.count()
 
 
@@ -47,7 +42,7 @@ def test_atomic_serializable():
 def test_atomic_decorator():
     @atomic(isolation_level='REPEATABLE READ')
     def f():
-        Trade.objects.create(company='Coca Cola', price=1)
+        ddf.G(Trade)
     f()
     assert 1 == Trade.objects.count()
 
@@ -59,7 +54,7 @@ def test_atomic_decorator_with_args():
         trade = Trade.objects.get(id=trade_id)
         trade.price = 2
         trade.save()
-    trade = Trade.objects.create(company='Coca Cola', price=1)
+    trade = ddf.G(Trade, price=1)
     f(trade.pk)
     assert 1 == Trade.objects.count()
 
@@ -68,7 +63,7 @@ def test_atomic_decorator_with_args():
 def test_atomic_nested_isolation_level_not_allowed():
     with pytest.raises(PGAtomicConfigurationError):
         with atomic(isolation_level="REPEATABLE READ"):
-            Trade.objects.create(company='Coca Cola', price=1)
+            ddf.G(Trade)
             with atomic(isolation_level="REPEATABLE READ"):
                 pass
 
@@ -76,9 +71,9 @@ def test_atomic_nested_isolation_level_not_allowed():
 @pytest.mark.django_db(transaction=True)
 def test_atomic_with_nested_atomic():
     with atomic(isolation_level="REPEATABLE READ"):
-        Trade.objects.create(company='Coca Cola', price=1)
+        ddf.G(Trade)
         with atomic():
-            Trade.objects.create(company='Coca Cola 2', price=1)
+            ddf.G(Trade)
     assert 2 == Trade.objects.count()
 
 
@@ -88,77 +83,58 @@ def test_atomic_rollback():
         pass
     with pytest.raises(MockError):
         with atomic(isolation_level="REPEATABLE READ"):
-            Trade.objects.create(company='Coca Cola', price=1)
+            ddf.G(Trade)
             raise MockError
-    assert 0 == Trade.objects.count()
+    assert not Trade.objects.exists()
 
 
 @pytest.mark.django_db(transaction=True)
 def test_pg_atomic_nested_atomic_rollback():
     with atomic(isolation_level="REPEATABLE READ"):
-        Trade.objects.create(company='Coca Cola', price=1)
+        trade = ddf.G(Trade, company='Coca Cola')
         try:
-            with atomic():
-                Trade.objects.create(company='Coca Cola 2', price=1)
-                raise RuntimeError
-        except RuntimeError:
+            with atomic():  # pragma: no branch
+                trade.id = None
+                trade.save()
+        except IntegrityError:
             pass
     assert 1 == Trade.objects.count()
 
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_retries_context_manager_not_allowed():
-    with pytest.raises(PGAtomicConfigurationError):
+    with pytest.raises(PGAtomicConfigurationError, match="as a context manager"):
         with atomic(isolation_level='REPEATABLE READ', retry=1):
-            Trade.objects.create(company='Coca Cola', price=1)
+            pass
 
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_retries_all_retries_fail():
     dec = atomic(isolation_level='REPEATABLE READ', retry=2)
-    assert 0 == Trade.objects.all().count()
+    assert not Trade.objects.exists()
     assert 2 == dec.retry
 
     @dec
     def func():
-        Trade.objects.create(company='Coca Cola', price=1)
+        ddf.G(Trade)
         raise psycopg2.errors.SerializationFailure
 
     with pytest.raises(psycopg2.errors.SerializationFailure):
         func()
 
-    assert 0 == Trade.objects.all().count()
-    assert 0 == dec.retry
-
-
-@pytest.mark.django_db(transaction=True)
-def test_atomic_retries_decorator_first_retry_passes(self):
-    dec = atomic(isolation_level='REPEATABLE READ', retries=1)
-    assert 0 == Trade.objects.all().count()
-    assert 1 == dec.retry
-
-    @dec
-    def func():
-        Trade.objects.create(company='Coca Cola', price=1)
-        if dec.retries == 1:
-            raise psycopg2.errors.SerializationFailure
-
-    with pytest.raises(psycopg2.errors.SerializationFailure):
-        func()
-
-    assert 1 == Trade.objects.all().count()
+    assert not Trade.objects.exists()
     assert 0 == dec.retry
 
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_retries_decorator_first_retry_passes():
     dec = atomic(isolation_level='REPEATABLE READ', retry=1)
-    assert 0 == Trade.objects.all().count()
+    assert not Trade.objects.exists()
     assert 1 == dec.retry
 
     @dec
     def func():
-        Trade.objects.create(company='Coca Cola', price=1)
+        ddf.G(Trade)
         if dec.retry == 1:
             raise psycopg2.errors.SerializationFailure
 
@@ -171,16 +147,16 @@ def test_atomic_retries_decorator_first_retry_passes():
 def test_pg_atomic_retries_with_nested_atomic_failure():
     dec = atomic(isolation_level='REPEATABLE READ', retry=2)
 
-    assert 0 == Trade.objects.all().count()
+    assert not Trade.objects.exists()
     assert 2 == dec.retry
 
     @dec
     def outer():
-        Trade.objects.create(company='Coca Cola', price=1)
+        ddf.G(Trade)
 
         @atomic
         def inner():
-            Trade.objects.create(company='Coca Cola 2', price=1)
+            ddf.G(Trade)
             raise psycopg2.errors.SerializationFailure
         try:
             inner()
@@ -193,28 +169,22 @@ def test_pg_atomic_retries_with_nested_atomic_failure():
 
 
 @pytest.mark.django_db(transaction=True)
-def test_atomic_retries_with_nested_atomic_run_time_failure():
+def test_atomic_retries_with_run_time_failure():
     dec = atomic(isolation_level='REPEATABLE READ', retry=2)
 
-    assert 0 == Trade.objects.all().count()
+    assert not Trade.objects.exists()
     assert 2 == dec.retry
 
     @dec
     def outer():
-        Trade.objects.create(company='Coca Cola', price=1)
+        ddf.G(Trade)
+        raise RuntimeError
 
-        @atomic
-        def inner():
-            Trade.objects.create(company='Coca Cola 2', price=1)
-            raise RuntimeError
-        try:
-            inner()
-        except RuntimeError:
-            pass
+    with pytest.raises(RuntimeError):
+        outer()
 
-    outer()
-    assert 1 == Trade.objects.all().count()
-    assert 2 == dec.retry
+    assert not Trade.objects.all().exists()
+    assert 2 == dec.retry  # We shouldn't retry on RuntimeErrors
 
 
 @pytest.mark.django_db(transaction=True)
@@ -226,11 +196,11 @@ def test_atomic_retries_with_nested_atomic_and_outer_retry():
 
     @dec
     def outer():
-        Trade.objects.create(company='Coca Cola', price=1)
+        ddf.G(Trade)
 
         @atomic
         def inner():
-            Trade.objects.create(company='Coca Cola 2', price=1)
+            ddf.G(Trade)
         inner()
         if dec.retry == 1:
             raise psycopg2.errors.SerializationFailure
@@ -238,5 +208,3 @@ def test_atomic_retries_with_nested_atomic_and_outer_retry():
     outer()
     assert 2 == Trade.objects.all().count()
     assert 0 == dec.retry
-    assert 1 == Trade.objects.filter(company='Coca Cola').count()
-    assert 1 == Trade.objects.filter(company='Coca Cola 2').count()

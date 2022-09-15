@@ -26,11 +26,11 @@ class PGAtomic(Atomic):
         self._validate()
 
     def _validate(self):
-        if self.connection.vendor != 'postgresql':
+        if self.connection.vendor != 'postgresql':  # pragma: no cover
             raise PGAtomicConfigurationError(
                 f'pgtransaction.atomic cannot be used with {self.connection.vendor}')
         if self.isolation_level and self.isolation_level.upper() not in (
-            'READ COMMITTED', 'REPEATABLE READ', 'SERIALIZABLE'):
+            'READ COMMITTED', 'REPEATABLE READ', 'SERIALIZABLE'):  # pragma: no cover
             raise PGAtomicConfigurationError(
                 f'Isolation level {self.isolation_level} not recognised')
         if self.isolation_level and self.connection.in_atomic_block:
@@ -40,7 +40,7 @@ class PGAtomic(Atomic):
                 'inherit the isolation level from their parent transaction '
                 'automatically.'
             )
-        if self.retry and self.connection.in_atomic_block:
+        if self.retry and self.connection.in_atomic_block:  # pragma: no cover
             raise PGAtomicConfigurationError(
                 'Retries are not permitted within a nested atomic transaction')
 
