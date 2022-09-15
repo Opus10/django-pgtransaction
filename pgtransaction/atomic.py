@@ -1,7 +1,6 @@
 from functools import wraps
 
-from django.db import DEFAULT_DB_ALIAS
-from django.db.transaction import Atomic, get_connection
+from django.db import DEFAULT_DB_ALIAS, transaction
 import psycopg2.errors
 
 
@@ -9,7 +8,7 @@ class PGAtomicConfigurationError(Exception):
     pass
 
 
-class PGAtomic(Atomic):
+class Atomic(transaction.Atomic):
     def __init__(
         self,
         using,
@@ -19,32 +18,36 @@ class PGAtomic(Atomic):
         retry,
     ):
         super().__init__(using, savepoint, durable)
-        self.connection = get_connection(self.using)
+        self.connection = transaction.get_connection(self.using)
         self.isolation_level = isolation_level
         self.retry = retry
         self._used_as_context_manager = True
         self._validate()
 
     def _validate(self):
-        if self.connection.vendor != "postgresql":  # pragma: no cover
-            raise PGAtomicConfigurationError(
-                f"pgtransaction.atomic cannot be used with {self.connection.vendor}"
-            )
-        if self.isolation_level and self.isolation_level.upper() not in (
-            "READ COMMITTED",
-            "REPEATABLE READ",
-            "SERIALIZABLE",
-        ):  # pragma: no cover
-            raise PGAtomicConfigurationError(
-                f"Isolation level {self.isolation_level} not recognised"
-            )
-        if self.isolation_level and self.connection.in_atomic_block:
-            raise PGAtomicConfigurationError(
-                "Setting the isolation level inside in a nested atomic "
-                "transaction is not permitted. Nested atomic transactions "
-                "inherit the isolation level from their parent transaction "
-                "automatically."
-            )
+        if self.isolation_level:
+            if self.connection.vendor != "postgresql":  # pragma: no cover
+                raise PGAtomicConfigurationError(
+                    f"pgtransaction.atomic cannot be used with {self.connection.vendor}"
+                )
+
+            if self.isolation_level.upper() not in (
+                "READ COMMITTED",
+                "REPEATABLE READ",
+                "SERIALIZABLE",
+            ):  # pragma: no cover
+                raise PGAtomicConfigurationError(
+                    f"Isolation level {self.isolation_level} not recognised"
+                )
+
+            if self.connection.in_atomic_block:
+                raise PGAtomicConfigurationError(
+                    "Setting the isolation level inside in a nested atomic "
+                    "transaction is not permitted. Nested atomic transactions "
+                    "inherit the isolation level from their parent transaction "
+                    "automatically."
+                )
+
         if self.retry and self.connection.in_atomic_block:  # pragma: no cover
             raise PGAtomicConfigurationError(
                 "Retries are not permitted within a nested atomic transaction"
@@ -100,7 +103,7 @@ def atomic(
 ):
     # Copies structure of django.db.transaction.atomic
     if callable(using):
-        return PGAtomic(
+        return Atomic(
             DEFAULT_DB_ALIAS,
             savepoint,
             durable,
@@ -108,7 +111,7 @@ def atomic(
             retry,
         )(using)
     else:
-        return PGAtomic(
+        return Atomic(
             using,
             savepoint,
             durable,
