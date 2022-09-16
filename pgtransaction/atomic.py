@@ -1,6 +1,7 @@
 from functools import wraps
 
 from django.db import DEFAULT_DB_ALIAS, Error, transaction
+from django.db.utils import NotSupportedError
 import psycopg2.errors
 
 
@@ -17,32 +18,21 @@ class Atomic(transaction.Atomic):
         self.isolation_level = isolation_level
         self.retry = retry
         self._used_as_context_manager = True
-        self._validate()
 
-    def _validate(self):
-        connection = transaction.get_connection(self.using)
+        if self.isolation_level:  # pragma: no cover
+            connection = transaction.get_connection(self.using)
 
-        if self.isolation_level:
-            if connection.vendor != "postgresql":  # pragma: no cover
-                raise RuntimeError(f"pgtransaction.atomic cannot be used with {connection.vendor}")
+            if connection.vendor != "postgresql":
+                raise NotSupportedError(
+                    f"pgtransaction.atomic cannot be used with {connection.vendor}"
+                )
 
             if self.isolation_level.upper() not in (
                 "READ COMMITTED",
                 "REPEATABLE READ",
                 "SERIALIZABLE",
-            ):  # pragma: no cover
+            ):
                 raise ValueError(f'Invalid isolation level "{self.isolation_level}"')
-
-            if connection.in_atomic_block:
-                raise RuntimeError(
-                    "Setting the isolation level inside in a nested atomic "
-                    "transaction is not permitted. Nested atomic transactions "
-                    "inherit the isolation level from their parent transaction "
-                    "automatically."
-                )
-
-        if self.retry and connection.in_atomic_block:  # pragma: no cover
-            raise RuntimeError("Retries are not permitted within a nested atomic transaction")
 
     def __call__(self, func):
         self._used_as_context_manager = False
@@ -73,7 +63,19 @@ class Atomic(transaction.Atomic):
     def __enter__(self):
         connection = transaction.get_connection(self.using)
 
-        if self.retry != 0 and self._used_as_context_manager:
+        if connection.in_atomic_block:
+            if self.isolation_level:
+                raise RuntimeError(
+                    "Setting the isolation level inside in a nested atomic "
+                    "transaction is not permitted. Nested atomic transactions "
+                    "inherit the isolation level from their parent transaction "
+                    "automatically."
+                )
+
+            if self.retry:  # pragma: no cover
+                raise RuntimeError("Retries are not permitted within a nested atomic transaction")
+
+        if self.retry and self._used_as_context_manager:
             raise RuntimeError(
                 "Cannot use pgtransaction.atomic as a context manager "
                 "when retry is non-zero. Use as a decorator instead."

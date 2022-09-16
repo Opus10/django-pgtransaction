@@ -68,9 +68,16 @@ def test_atomic_decorator_with_args():
 def test_atomic_nested_isolation_level_not_allowed():
     with pytest.raises(RuntimeError, match="Setting the isolation level"):
         with atomic(isolation_level="REPEATABLE READ"):
-            ddf.G(Trade)
             with atomic(isolation_level="REPEATABLE READ"):
                 pass
+
+    @atomic(isolation_level="REPEATABLE READ")
+    def decorated():
+        pass
+
+    with pytest.raises(RuntimeError, match="Setting the isolation level"):
+        with atomic(isolation_level="REPEATABLE READ"):
+            decorated()
 
 
 @pytest.mark.django_db(transaction=True)
