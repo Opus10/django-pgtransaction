@@ -20,11 +20,9 @@ class Atomic(transaction.Atomic):
         self._used_as_context_manager = True
 
         if self.isolation_level:  # pragma: no cover
-            connection = transaction.get_connection(self.using)
-
-            if connection.vendor != "postgresql":
+            if self.connection.vendor != "postgresql":
                 raise NotSupportedError(
-                    f"pgtransaction.atomic cannot be used with {connection.vendor}"
+                    f"pgtransaction.atomic cannot be used with {self.connection.vendor}"
                 )
 
             if self.isolation_level.upper() not in (
@@ -33,6 +31,11 @@ class Atomic(transaction.Atomic):
                 "SERIALIZABLE",
             ):
                 raise ValueError(f'Invalid isolation level "{self.isolation_level}"')
+
+    @property
+    def connection(self):
+        # Don't set this property on the class, otherwise it won't be thread safe
+        return transaction.get_connection(self.using)
 
     def __call__(self, func):
         self._used_as_context_manager = False
@@ -60,20 +63,15 @@ class Atomic(transaction.Atomic):
 
         return inner
 
+    def execute_set_isolation_level(self):
+        with self.connection.cursor() as cursor:
+            cursor.execute(f"SET TRANSACTION ISOLATION LEVEL {self.isolation_level.upper()}")
+
     def __enter__(self):
-        connection = transaction.get_connection(self.using)
+        in_nested_atomic_block = self.connection.in_atomic_block
 
-        if connection.in_atomic_block:
-            if self.isolation_level:
-                raise RuntimeError(
-                    "Setting the isolation level inside in a nested atomic "
-                    "transaction is not permitted. Nested atomic transactions "
-                    "inherit the isolation level from their parent transaction "
-                    "automatically."
-                )
-
-            if self.retry:  # pragma: no cover
-                raise RuntimeError("Retries are not permitted within a nested atomic transaction")
+        if in_nested_atomic_block and self.retry:
+            raise RuntimeError("Retries are not permitted within a nested atomic transaction")
 
         if self.retry and self._used_as_context_manager:
             raise RuntimeError(
@@ -81,12 +79,19 @@ class Atomic(transaction.Atomic):
                 "when retry is non-zero. Use as a decorator instead."
             )
 
+        # If we're already in a nested atomic block, try setting the isolation
+        # level before any check points are made when entering the atomic decorator.
+        # This helps avoid errors and allow people to still nest isolation levels
+        # when applicable
+        if in_nested_atomic_block and self.isolation_level:
+            self.execute_set_isolation_level()
+
         super().__enter__()
 
-        if self.isolation_level:
-            connection.cursor().execute(
-                f"SET TRANSACTION ISOLATION LEVEL {self.isolation_level.upper()}"
-            )
+        # If we weren't in a nested atomic block, set the isolation level for the first
+        # time after the transaction has been started
+        if not in_nested_atomic_block and self.isolation_level:
+            self.execute_set_isolation_level()
 
 
 def atomic(

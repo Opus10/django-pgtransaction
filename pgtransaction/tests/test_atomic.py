@@ -2,7 +2,8 @@ import threading
 import time
 
 import ddf
-from django.db.utils import IntegrityError, OperationalError
+from django.db import transaction
+from django.db.utils import IntegrityError, InternalError, OperationalError
 import psycopg2.errors
 import pytest
 
@@ -10,14 +11,14 @@ from pgtransaction.atomic import atomic
 from pgtransaction.tests.models import Trade
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db()
 def test_atomic_read_committed():
     with atomic(isolation_level="READ COMMITTED"):
         ddf.G(Trade)
     assert 1 == Trade.objects.count()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db()
 def test_atomic_repeatable_read():
     with atomic(isolation_level="REPEATABLE READ"):
         ddf.G(Trade)
@@ -34,14 +35,14 @@ def test_atomic_repeatable_read_with_select():
     assert 1 == Trade.objects.count()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db()
 def test_atomic_serializable():
     with atomic(isolation_level="SERIALIZABLE"):
         ddf.G(Trade)
     assert 1 == Trade.objects.count()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db()
 def test_atomic_decorator():
     @atomic(isolation_level="REPEATABLE READ")
     def f():
@@ -65,22 +66,36 @@ def test_atomic_decorator_with_args():
 
 
 @pytest.mark.django_db(transaction=True)
-def test_atomic_nested_isolation_level_not_allowed():
-    with pytest.raises(RuntimeError, match="Setting the isolation level"):
+def test_atomic_nested_isolation_levels():
+    # This is permitted because no statements have been issued
+    with transaction.atomic():
+        with atomic(isolation_level="SERIALIZABLE"):
+            pass
+
+    # You can't change the isolation levels after issuing
+    # a statement
+    with pytest.raises(InternalError):
         with atomic(isolation_level="REPEATABLE READ"):
-            with atomic(isolation_level="REPEATABLE READ"):
+            ddf.G(Trade)
+            with atomic(isolation_level="SERIALIZABLE"):
                 pass
 
-    @atomic(isolation_level="REPEATABLE READ")
-    def decorated():
-        pass
-
-    with pytest.raises(RuntimeError, match="Setting the isolation level"):
+    # This is permitted because the isolation levels remain the same
+    with atomic(isolation_level="REPEATABLE READ"):
+        ddf.G(Trade)
         with atomic(isolation_level="REPEATABLE READ"):
-            decorated()
+            pass
+
+    # Final sanity check
+    with pytest.raises(InternalError):
+        with atomic(isolation_level="REPEATABLE READ"):
+            ddf.G(Trade)
+            with atomic(isolation_level="REPEATABLE READ"):
+                with atomic(isolation_level="SERIALIZABLE"):
+                    pass
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db()
 def test_atomic_with_nested_atomic():
     with atomic(isolation_level="REPEATABLE READ"):
         ddf.G(Trade)
@@ -89,7 +104,7 @@ def test_atomic_with_nested_atomic():
     assert 2 == Trade.objects.count()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db()
 def test_atomic_rollback():
     with pytest.raises(Exception, match="Exception thrown"):
         with atomic(isolation_level="REPEATABLE READ"):
@@ -99,7 +114,7 @@ def test_atomic_rollback():
     assert not Trade.objects.exists()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db()
 def test_pg_atomic_nested_atomic_rollback():
     with atomic(isolation_level="REPEATABLE READ"):
         trade = ddf.G(Trade, company="Coca Cola")
@@ -117,6 +132,22 @@ def test_atomic_retries_context_manager_not_allowed():
     with pytest.raises(RuntimeError, match="as a context manager"):
         with atomic(isolation_level="REPEATABLE READ", retry=1):
             pass
+
+
+@pytest.mark.django_db()
+def test_atomic_nested_retries_not_permitted():
+    with pytest.raises(RuntimeError, match="Retries are not permitted"):
+        with transaction.atomic():
+            with atomic(isolation_level="REPEATABLE READ", retry=1):
+                pass
+
+    @atomic(isolation_level="REPEATABLE READ", retry=1)
+    def decorated():
+        pass
+
+    with pytest.raises(RuntimeError, match="Retries are not permitted"):
+        with transaction.atomic():
+            decorated()
 
 
 @pytest.mark.django_db(transaction=True)
