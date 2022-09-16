@@ -3,7 +3,7 @@ import time
 
 import ddf
 from django.db import transaction
-from django.db.utils import IntegrityError, InternalError, OperationalError
+from django.db.utils import InternalError, OperationalError
 import psycopg2.errors
 import pytest
 
@@ -117,12 +117,12 @@ def test_atomic_rollback():
 @pytest.mark.django_db()
 def test_pg_atomic_nested_atomic_rollback():
     with atomic(isolation_level="REPEATABLE READ"):
-        trade = ddf.G(Trade, company="Coca Cola")
+        ddf.G(Trade)
         try:
-            with atomic():  # pragma: no branch
-                trade.id = None
-                trade.save()
-        except IntegrityError:
+            with atomic():
+                ddf.G(Trade)
+                raise RuntimeError
+        except RuntimeError:
             pass
     assert 1 == Trade.objects.count()
 
