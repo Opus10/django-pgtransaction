@@ -1,5 +1,6 @@
 from functools import wraps
 
+import django
 from django.db import DEFAULT_DB_ALIAS, Error, transaction
 from django.db.utils import NotSupportedError
 import psycopg2.errors
@@ -14,7 +15,11 @@ class Atomic(transaction.Atomic):
         isolation_level,
         retry,
     ):
-        super().__init__(using, savepoint, durable)
+        if django.VERSION >= (3, 2):
+            super().__init__(using, savepoint, durable)
+        else:
+            super().__init__(using, savepoint)
+
         self.isolation_level = isolation_level
         self.retry = retry
         self._used_as_context_manager = True
