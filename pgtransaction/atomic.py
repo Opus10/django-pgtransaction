@@ -4,10 +4,6 @@ from django.db import DEFAULT_DB_ALIAS, Error, transaction
 import psycopg2.errors
 
 
-class PGAtomicConfigurationError(Exception):
-    pass
-
-
 class Atomic(transaction.Atomic):
     def __init__(
         self,
@@ -28,21 +24,17 @@ class Atomic(transaction.Atomic):
 
         if self.isolation_level:
             if connection.vendor != "postgresql":  # pragma: no cover
-                raise PGAtomicConfigurationError(
-                    f"pgtransaction.atomic cannot be used with {connection.vendor}"
-                )
+                raise RuntimeError(f"pgtransaction.atomic cannot be used with {connection.vendor}")
 
             if self.isolation_level.upper() not in (
                 "READ COMMITTED",
                 "REPEATABLE READ",
                 "SERIALIZABLE",
             ):  # pragma: no cover
-                raise PGAtomicConfigurationError(
-                    f"Isolation level {self.isolation_level} not recognised"
-                )
+                raise ValueError(f'Invalid isolation level "{self.isolation_level}"')
 
             if connection.in_atomic_block:
-                raise PGAtomicConfigurationError(
+                raise RuntimeError(
                     "Setting the isolation level inside in a nested atomic "
                     "transaction is not permitted. Nested atomic transactions "
                     "inherit the isolation level from their parent transaction "
@@ -50,9 +42,7 @@ class Atomic(transaction.Atomic):
                 )
 
         if self.retry and connection.in_atomic_block:  # pragma: no cover
-            raise PGAtomicConfigurationError(
-                "Retries are not permitted within a nested atomic transaction"
-            )
+            raise RuntimeError("Retries are not permitted within a nested atomic transaction")
 
     def __call__(self, func):
         self._used_as_context_manager = False
@@ -84,7 +74,7 @@ class Atomic(transaction.Atomic):
         connection = transaction.get_connection(self.using)
 
         if self.retry != 0 and self._used_as_context_manager:
-            raise PGAtomicConfigurationError(
+            raise RuntimeError(
                 "Cannot use pgtransaction.atomic as a context manager "
                 "when retry is non-zero. Use as a decorator instead."
             )

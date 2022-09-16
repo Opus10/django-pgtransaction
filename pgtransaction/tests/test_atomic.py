@@ -6,7 +6,7 @@ from django.db.utils import IntegrityError, OperationalError
 import psycopg2.errors
 import pytest
 
-from pgtransaction.atomic import atomic, PGAtomicConfigurationError
+from pgtransaction.atomic import atomic
 from pgtransaction.tests.models import Trade
 
 
@@ -66,7 +66,7 @@ def test_atomic_decorator_with_args():
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_nested_isolation_level_not_allowed():
-    with pytest.raises(PGAtomicConfigurationError):
+    with pytest.raises(RuntimeError, match="Setting the isolation level"):
         with atomic(isolation_level="REPEATABLE READ"):
             ddf.G(Trade)
             with atomic(isolation_level="REPEATABLE READ"):
@@ -107,7 +107,7 @@ def test_pg_atomic_nested_atomic_rollback():
 
 @pytest.mark.django_db(transaction=True)
 def test_atomic_retries_context_manager_not_allowed():
-    with pytest.raises(PGAtomicConfigurationError, match="as a context manager"):
+    with pytest.raises(RuntimeError, match="as a context manager"):
         with atomic(isolation_level="REPEATABLE READ", retry=1):
             pass
 
