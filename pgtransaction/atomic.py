@@ -1,6 +1,6 @@
 from functools import wraps
 
-from django.db import DEFAULT_DB_ALIAS, transaction
+from django.db import DEFAULT_DB_ALIAS, Error, transaction
 import psycopg2.errors
 
 
@@ -18,17 +18,18 @@ class Atomic(transaction.Atomic):
         retry,
     ):
         super().__init__(using, savepoint, durable)
-        self.connection = transaction.get_connection(self.using)
         self.isolation_level = isolation_level
         self.retry = retry
         self._used_as_context_manager = True
         self._validate()
 
     def _validate(self):
+        connection = transaction.get_connection(self.using)
+
         if self.isolation_level:
-            if self.connection.vendor != "postgresql":  # pragma: no cover
+            if connection.vendor != "postgresql":  # pragma: no cover
                 raise PGAtomicConfigurationError(
-                    f"pgtransaction.atomic cannot be used with {self.connection.vendor}"
+                    f"pgtransaction.atomic cannot be used with {connection.vendor}"
                 )
 
             if self.isolation_level.upper() not in (
@@ -40,7 +41,7 @@ class Atomic(transaction.Atomic):
                     f"Isolation level {self.isolation_level} not recognised"
                 )
 
-            if self.connection.in_atomic_block:
+            if connection.in_atomic_block:
                 raise PGAtomicConfigurationError(
                     "Setting the isolation level inside in a nested atomic "
                     "transaction is not permitted. Nested atomic transactions "
@@ -48,7 +49,7 @@ class Atomic(transaction.Atomic):
                     "automatically."
                 )
 
-        if self.retry and self.connection.in_atomic_block:  # pragma: no cover
+        if self.retry and connection.in_atomic_block:  # pragma: no cover
             raise PGAtomicConfigurationError(
                 "Retries are not permitted within a nested atomic transaction"
             )
@@ -58,38 +59,40 @@ class Atomic(transaction.Atomic):
 
         @wraps(func)
         def inner(*args, **kwds):
-            inst = self._recreate_cm()
-            with inst:
+            num_retries = 0
+
+            while True:  # pragma: no branch
                 try:
-                    return func(*args, **kwds)
-                except (
-                    psycopg2.errors.SerializationFailure,
-                    psycopg2.errors.DeadlockDetected,
-                ) as error:
-                    if self.retry > 0:
-                        self.retry -= 1
-                        # Apply __exit__ to rollback and clean up the
-                        # failed transaction correctly
-                        self.__exit__(
+                    with self._recreate_cm():
+                        return func(*args, **kwds)
+                except Error as error:
+                    if (
+                        error.__cause__.__class__
+                        not in (
                             psycopg2.errors.SerializationFailure,
-                            error,
-                            "",
+                            psycopg2.errors.DeadlockDetected,
                         )
-                    else:
+                        or num_retries >= self.retry
+                    ):
                         raise
-            return inner(*args, **kwds)
+
+                num_retries += 1
 
         return inner
 
     def __enter__(self):
+        connection = transaction.get_connection(self.using)
+
         if self.retry != 0 and self._used_as_context_manager:
             raise PGAtomicConfigurationError(
                 "Cannot use pgtransaction.atomic as a context manager "
                 "when retry is non-zero. Use as a decorator instead."
             )
+
         super().__enter__()
+
         if self.isolation_level:
-            self.connection.cursor().execute(
+            connection.cursor().execute(
                 f"SET TRANSACTION ISOLATION LEVEL {self.isolation_level.upper()}"
             )
 
