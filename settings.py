@@ -6,6 +6,8 @@ import dj_database_url
 SECRET_KEY = "django-pgtransaction"
 # Install the tests as an app so that we can make test models
 INSTALLED_APPS = [
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
     "pgtransaction",
 ]
 

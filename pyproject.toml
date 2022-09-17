@@ -62,6 +62,7 @@ importlib_metadata = { version = ">=4", python = "~3.7" }
 [tool.poetry.dev-dependencies]
 black = "22.6.0"
 dj-database-url = "0.5.0"
+django-dynamic-fixture = "3.1.2"
 flake8 = "3.9.2"
 flake8-bugbear = "22.1.11"
 flake8-comprehensions = "3.8.0"
