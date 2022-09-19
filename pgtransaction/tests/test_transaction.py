@@ -7,7 +7,7 @@ from django.db.utils import InternalError, OperationalError
 import psycopg2.errors
 import pytest
 
-from pgtransaction.atomic import atomic
+from pgtransaction.transaction import atomic
 from pgtransaction.tests.models import Trade
 
 
