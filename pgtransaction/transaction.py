@@ -3,7 +3,13 @@ from functools import wraps
 import django
 from django.db import DEFAULT_DB_ALIAS, Error, transaction
 from django.db.utils import NotSupportedError
-import psycopg2.errors
+
+from pgtransaction import config
+
+
+READ_COMMITTED = "READ COMMITTED"
+REPEATABLE_READ = "REPEATABLE READ"
+SERIALIZABLE = "SERIALIZABLE"
 
 
 class Atomic(transaction.Atomic):
@@ -31,9 +37,9 @@ class Atomic(transaction.Atomic):
                 )
 
             if self.isolation_level.upper() not in (
-                "READ COMMITTED",
-                "REPEATABLE READ",
-                "SERIALIZABLE",
+                READ_COMMITTED,
+                REPEATABLE_READ,
+                SERIALIZABLE,
             ):
                 raise ValueError(f'Invalid isolation level "{self.isolation_level}"')
 
@@ -55,11 +61,7 @@ class Atomic(transaction.Atomic):
                         return func(*args, **kwds)
                 except Error as error:
                     if (
-                        error.__cause__.__class__
-                        not in (
-                            psycopg2.errors.SerializationFailure,
-                            psycopg2.errors.DeadlockDetected,
-                        )
+                        error.__cause__.__class__ not in config.retry_exceptions()
                         or num_retries >= self.retry
                     ):
                         raise
@@ -104,8 +106,11 @@ def atomic(
     savepoint=True,
     durable=False,
     isolation_level=None,
-    retry=0,
+    retry=None,
 ):
+    if retry is None:
+        retry = config.retry()
+
     # Copies structure of django.db.transaction.atomic
     if callable(using):
         return Atomic(

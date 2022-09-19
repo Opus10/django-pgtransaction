@@ -1,4 +1,12 @@
-from django.db.transaction import *  # noqa
+# flake8: noqa
 
-from pgtransaction.transaction import Atomic, atomic  # noqa
-from pgtransaction.version import __version__  # noqa
+from django.db.transaction import *
+
+from pgtransaction.transaction import (
+    Atomic,
+    atomic,
+    READ_COMMITTED,
+    REPEATABLE_READ,
+    SERIALIZABLE,
+)
+from pgtransaction.version import __version__
