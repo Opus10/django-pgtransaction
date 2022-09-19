@@ -6,5 +6,7 @@ Table of Contents
 
    index
    installation
+   package
+   example
    release_notes
    contributing
