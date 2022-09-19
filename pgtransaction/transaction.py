@@ -106,6 +106,10 @@ def atomic(
     isolation_level=None,
     retry=0,
 ):
+    """
+    For storing an event when a condition happens on a model.
+
+    """
     # Copies structure of django.db.transaction.atomic
     if callable(using):
         return Atomic(
