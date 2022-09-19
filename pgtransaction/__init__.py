@@ -1,3 +1,4 @@
-from pgtransaction.version import __version__
+from django.db.transaction import *  # noqa
 
-__all__ = ["__version__"]
+from pgtransaction.transaction import Atomic, atomic  # noqa
+from pgtransaction.version import __version__  # noqa

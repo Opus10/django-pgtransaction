@@ -7,8 +7,9 @@ from django.db.utils import InternalError, OperationalError
 import psycopg2.errors
 import pytest
 
-from pgtransaction.transaction import atomic
+import pgtransaction
 from pgtransaction.tests.models import Trade
+from pgtransaction.transaction import atomic
 
 
 @pytest.mark.django_db()
@@ -271,7 +272,7 @@ def test_concurrent_serialization_error():
         # We have to instantiate the decorator inside the function, otherwise
         # it is shared among threads and causes the test to hang. It's uncertain
         # what causes it to hang.
-        @atomic(isolation_level="SERIALIZABLE", retry=3)
+        @pgtransaction.atomic(isolation_level="SERIALIZABLE", retry=3)
         def inner_update(trade, calls):
             calls.append(True)
             trade = Trade.objects.get(id=trade.id)
