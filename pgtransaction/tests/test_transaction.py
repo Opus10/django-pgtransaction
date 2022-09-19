@@ -7,20 +7,21 @@ from django.db.utils import InternalError, OperationalError
 import psycopg2.errors
 import pytest
 
-from pgtransaction.atomic import atomic
+import pgtransaction
 from pgtransaction.tests.models import Trade
+from pgtransaction.transaction import atomic
 
 
 @pytest.mark.django_db()
 def test_atomic_read_committed():
-    with atomic(isolation_level="READ COMMITTED"):
+    with atomic(isolation_level=pgtransaction.READ_COMMITTED):
         ddf.G(Trade)
     assert 1 == Trade.objects.count()
 
 
 @pytest.mark.django_db()
 def test_atomic_repeatable_read():
-    with atomic(isolation_level="REPEATABLE READ"):
+    with atomic(isolation_level=pgtransaction.REPEATABLE_READ):
         ddf.G(Trade)
     assert 1 == Trade.objects.count()
 
@@ -37,7 +38,7 @@ def test_atomic_repeatable_read_with_select():
 
 @pytest.mark.django_db()
 def test_atomic_serializable():
-    with atomic(isolation_level="SERIALIZABLE"):
+    with atomic(isolation_level=pgtransaction.SERIALIZABLE):
         ddf.G(Trade)
     assert 1 == Trade.objects.count()
 
@@ -271,7 +272,7 @@ def test_concurrent_serialization_error():
         # We have to instantiate the decorator inside the function, otherwise
         # it is shared among threads and causes the test to hang. It's uncertain
         # what causes it to hang.
-        @atomic(isolation_level="SERIALIZABLE", retry=3)
+        @pgtransaction.atomic(isolation_level="SERIALIZABLE", retry=3)
         def inner_update(trade, calls):
             calls.append(True)
             trade = Trade.objects.get(id=trade.id)
