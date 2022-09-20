@@ -166,4 +166,4 @@ format:
 # Spin down docker resources
 .PHONY: teardown
 teardown:
-	$(DOCKER_CMD)-compose down
+	$(DOCKER_CMD)-compose down --remove-orphans
