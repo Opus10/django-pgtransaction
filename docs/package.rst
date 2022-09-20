@@ -6,5 +6,4 @@ Package
 pgtransaction
 --------------
 
-.. automodule:: pgtransaction.transaction
-    :members:
+.. autofunction:: pgtransaction.atomic
