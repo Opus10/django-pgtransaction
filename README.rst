@@ -41,8 +41,8 @@ to retry these failures:
 Note that the ``retry`` argument will not work when used as a context manager. A ``RuntimeError``
 will be thrown.
 
-By default, retries are only performed when ``psycopg2.errors.SerializationError`` or
-``psycopg2.errors.DeadlockDetected`` errors are raised. Configure retried psycopg2 errors with
+By default, retries are only performed when ``psycopg.errors.SerializationError`` or
+``psycopg.errors.DeadlockDetected`` errors are raised. Configure retried psycopg errors with
 ``settings.PGTRANSACTION_RETRY_EXCEPTIONS``. You can set a default retry amount with
 ``settings.PGTRANSACTION_RETRY``.
 
@@ -50,6 +50,11 @@ By default, retries are only performed when ``psycopg2.errors.SerializationError
 
 1. The isolation level cannot be changed once a query has been performed.
 2. The retry argument only works on the outermost invocation as a decorator, otherwise ``RuntimeError`` is raised.
+
+Compatibility
+=============
+
+``django-pgtransaction`` is compatible with Python 3.7 - 3.11, Django 3.2 - 4.2, Psycopg 2 - 3 and Postgres 12 - 15.
 
 Documentation
 =============

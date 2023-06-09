@@ -4,12 +4,16 @@ import time
 import ddf
 from django.db import transaction
 from django.db.utils import InternalError, OperationalError
-import psycopg2.errors
 import pytest
 
 import pgtransaction
 from pgtransaction.tests.models import Trade
 from pgtransaction.transaction import atomic
+
+try:
+    import psycopg.errors as psycopg_errors
+except ImportError:
+    import psycopg2.errors as psycopg_errors
 
 
 @pytest.mark.django_db()
@@ -160,7 +164,7 @@ def test_atomic_retries_all_retries_fail():
     def func(retries):
         attempts.append(True)
         ddf.G(Trade)
-        raise OperationalError from psycopg2.errors.SerializationFailure
+        raise OperationalError from psycopg_errors.SerializationFailure
 
     with pytest.raises(OperationalError):
         func(attempts)
@@ -186,7 +190,7 @@ def test_atomic_retries_decorator_first_retry_passes():
         attempts.append(True)
         ddf.G(Trade)
         if len(attempts) == 1:
-            raise OperationalError from psycopg2.errors.SerializationFailure
+            raise OperationalError from psycopg_errors.SerializationFailure
 
     func(attempts)
     assert 1 == Trade.objects.all().count()
@@ -206,11 +210,11 @@ def test_pg_atomic_retries_with_nested_atomic_failure():
         def inner(attempts):
             attempts.append(True)
             ddf.G(Trade)
-            raise psycopg2.errors.SerializationFailure
+            raise psycopg_errors.SerializationFailure
 
         try:
             inner(attempts)
-        except psycopg2.errors.SerializationFailure:
+        except psycopg_errors.SerializationFailure:
             pass
 
     outer(attempts)
@@ -253,7 +257,7 @@ def test_atomic_retries_with_nested_atomic_and_outer_retry():
         inner(attempts)
 
         if len(attempts) == 1:
-            raise OperationalError from psycopg2.errors.SerializationFailure
+            raise OperationalError from psycopg_errors.SerializationFailure
 
     outer(attempts)
     assert 2 == Trade.objects.all().count()
