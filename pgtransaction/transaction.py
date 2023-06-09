@@ -23,7 +23,7 @@ class Atomic(transaction.Atomic):
     ):
         if django.VERSION >= (3, 2):
             super().__init__(using, savepoint, durable)
-        else:
+        else:  # pragma: no cover
             super().__init__(using, savepoint)
 
         self.isolation_level = isolation_level
@@ -156,7 +156,7 @@ def atomic(
         defines the number of times the transaction will be retried upon encountering
         the exceptions referenced by ``settings.PGTRANSACTION_RETRY_EXCEPTIONS``,
         which defaults to
-        ``(psycopg2.errors.SerializationFailure, psycopg2.errors.DeadlockDetected)``.
+        ``(psycopg.errors.SerializationFailure, psycopg.errors.DeadlockDetected)``.
         For example:
 
         .. code-block:: python

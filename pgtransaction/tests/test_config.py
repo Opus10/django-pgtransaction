@@ -1,16 +1,19 @@
-import psycopg2.errors
+try:
+    import psycopg.errors as psycopg_errors
+except ImportError:
+    import psycopg2.errors as psycopg_errors
 
 from pgtransaction import config
 
 
 def test_retry_exceptions(settings):
     assert config.retry_exceptions() == (
-        psycopg2.errors.SerializationFailure,
-        psycopg2.errors.DeadlockDetected,
+        psycopg_errors.SerializationFailure,
+        psycopg_errors.DeadlockDetected,
     )
 
-    settings.PGTRANSACTION_RETRY_EXCEPTIONS = [psycopg2.errors.DeadlockDetected]
-    assert config.retry_exceptions() == [psycopg2.errors.DeadlockDetected]
+    settings.PGTRANSACTION_RETRY_EXCEPTIONS = [psycopg_errors.DeadlockDetected]
+    assert config.retry_exceptions() == [psycopg_errors.DeadlockDetected]
 
 
 def test_retry(settings):
