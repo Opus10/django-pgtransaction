@@ -5,8 +5,8 @@ try:
     import psycopg.errors as psycopg_errors
 except ImportError:
     import psycopg2.errors as psycopg_errors
-except ImportError:  # pragma: no cover
-    raise ImproperlyConfigured("Error loading psycopg2 or psycopg module")
+except Exception as exc:  # pragma: no cover
+    raise ImproperlyConfigured("Error loading psycopg2 or psycopg module") from exc
 
 
 def retry_exceptions():

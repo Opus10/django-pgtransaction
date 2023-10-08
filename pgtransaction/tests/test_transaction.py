@@ -2,9 +2,9 @@ import threading
 import time
 
 import ddf
+import pytest
 from django.db import transaction
 from django.db.utils import InternalError, OperationalError
-import pytest
 
 import pgtransaction
 from pgtransaction.tests.models import Trade
@@ -272,7 +272,6 @@ def test_concurrent_serialization_error():
     """
 
     def concurrent_update(barrier, trade, calls):
-
         # We have to instantiate the decorator inside the function, otherwise
         # it is shared among threads and causes the test to hang. It's uncertain
         # what causes it to hang.
