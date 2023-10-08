@@ -1,11 +1,11 @@
 from functools import wraps
+from typing import Union
 
 import django
 from django.db import DEFAULT_DB_ALIAS, Error, transaction
 from django.db.utils import NotSupportedError
 
 from pgtransaction import config
-
 
 READ_COMMITTED = "READ COMMITTED"
 REPEATABLE_READ = "REPEATABLE READ"
@@ -102,46 +102,47 @@ class Atomic(transaction.Atomic):
 
 
 def atomic(
-    using=None,
-    savepoint=True,
-    durable=False,
-    isolation_level=None,
-    retry=None,
+    using: Union[str, None] = None,
+    savepoint: bool = True,
+    durable: bool = False,
+    isolation_level: Union[str, None] = None,
+    retry: Union[int, None] = None,
 ):
     """
-    Extends ``django.db.transaction.atomic`` with PostgreSQL functionality.
+    Extends `django.db.transaction.atomic` with PostgreSQL functionality.
 
     Allows one to dynamically set the isolation level when opening a transaction,
     as well as specifying a retry policy for when an operation in that transaction results
     in a Postgres locking exception.
 
     Args:
-        isolation_level (str): The isolation level we wish to be
+        using: The database to use.
+        savepoint: If `True`, create a savepoint to roll back.
+        durable: If `True`, raise a `RuntimeError` if nested within another atomic block.
+        isolation_level: The isolation level we wish to be
             used for the duration of the transaction. If passed in
             as None, the current isolation level is used. Otherwise,
-            we must choose from ``pgtransaction.READ_COMMITTED``,
-            ``pgtransaction.REPEATABLE_READ`` or ``pgtransaction.SERIALIZABLE``.
+            we must choose from `pgtransaction.READ_COMMITTED`,
+            `pgtransaction.REPEATABLE_READ` or `pgtransaction.SERIALIZABLE`.
             Note that the default isolation for a Django project is
             "READ COMMITTED". It is not permitted to pass this value
-            as anything but None when using ``pgtransaction.atomic``
+            as anything but None when using [pgtransaction.atomic][]
             is used as a nested atomic block - in that scenario,
             the isolation level is inherited from the parent transaction.
-        retry (int): An integer specifying the number of attempts
+        retry: An integer specifying the number of attempts
             we want to retry the entire transaction upon encountering
             the settings-specified psycogp2 exceptions. If passed in as
             None, we default to using the settings-specified retry
-            policy defined by ``settings.PGTRANSACTION_RETRY_EXCEPTIONS`` and
-            ``settings.PGTRANSACTION_RETRY``. Note that it is not possible
-            to specify a non-zero value of retry when ``pgtransaction.atomic``
+            policy defined by `settings.PGTRANSACTION_RETRY_EXCEPTIONS` and
+            `settings.PGTRANSACTION_RETRY`. Note that it is not possible
+            to specify a non-zero value of retry when [pgtransaction.atomic][]
             is used in a nested atomic block or when used as a context manager.
 
-    Examples:
-        Since ``pgtransaction.atomic`` inherits from ``django.db.transaction.atomic``, it
+    Example:
+        Since [pgtransaction.atomic][] inherits from `django.db.transaction.atomic`, it
         can be used in exactly the same manner. Additionally, when used as a
         context manager or a decorator, one can use it to specify the
         isolation level of the new transaction. For example:
-
-        .. code-block:: python
 
             import pgtransaction
 
@@ -149,17 +150,16 @@ def atomic(
                 # Isolation level is now "REPEATABLE READ" for the duration of the "with" block.
                 ...
 
-        Note that setting ``isolation_level`` in a nested atomic block is permitted as long
+        Note that setting `isolation_level` in a nested atomic block is permitted as long
         as no queries have been made.
 
-        When used as a decorator, one can also specify a ``retry`` argument. This
+    Example:
+        When used as a decorator, one can also specify a `retry` argument. This
         defines the number of times the transaction will be retried upon encountering
-        the exceptions referenced by ``settings.PGTRANSACTION_RETRY_EXCEPTIONS``,
+        the exceptions referenced by `settings.PGTRANSACTION_RETRY_EXCEPTIONS`,
         which defaults to
-        ``(psycopg.errors.SerializationFailure, psycopg.errors.DeadlockDetected)``.
+        `(psycopg.errors.SerializationFailure, psycopg.errors.DeadlockDetected)`.
         For example:
-
-        .. code-block:: python
 
             @pgtransaction.atomic(retry=3)
             def update():
@@ -168,8 +168,8 @@ def atomic(
                 # is encountered. Each retry will open a new transaction (after
                 # rollback the previous one).
 
-        Attempting to set a non-zero value for ``retry`` when using ``pgtransaction.atomic``
-        as a context manager will result in a RuntimeError.
+        Attempting to set a non-zero value for `retry` when using [pgtransaction.atomic][]
+        as a context manager will result in a `RuntimeError`.
     """
 
     if retry is None:

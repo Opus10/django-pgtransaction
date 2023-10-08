@@ -1,7 +1,7 @@
 _extensions:
 - jinja2_time.TimeExtension
 _template: git@github.com:Opus10/public-django-app-template.git
-_version: e83438cb63f6822c31818a24ee02bb1179b18f05
+_version: b87c86b7bcc8785751deb63c34f13175d0c97ce9
 module_name: pgtransaction
 repo_name: django-pgtransaction
 short_description: A context manager/decorator which extends Django's atomic function
