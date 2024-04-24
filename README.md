@@ -49,14 +49,13 @@ Check out the [Postgres docs](https://www.postgresql.org/docs/current/transactio
 Install `django-pgtransaction` with:
 
     pip3 install django-pgtransaction
-
 After this, add `pgtransaction` to the `INSTALLED_APPS` setting of your Django project.
 
 ## Contributing Guide
 
 For information on setting up django-pgtransaction for development and contributing changes, view [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Primary Authors
+## Creators
 
 - [Paul Gilmartin](https://github.com/PaulGilmartin)
 - [Wes Kendall](https://github.com/wesleykendall)
