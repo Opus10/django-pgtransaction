@@ -4,7 +4,7 @@
 
 #### Changes
 
-  - Django 5.1 compatibilty, and Dropped Django 3.2 / Postgres 12 support by [@wesleykendall](https://github.com/wesleykendall) in [#14](https://github.com/Opus10/django-pglock/pull/14).
+  - Django 5.1 compatibilty, and Dropped Django 3.2 / Postgres 12 support by [@wesleykendall](https://github.com/wesleykendall) in [#14](https://github.com/Opus10/django-pgtransaction/pull/14).
 
 ## 1.3.2 (2024-04-23)
 
