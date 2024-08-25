@@ -1,20 +1,26 @@
 # Changelog
 
+## 1.4.0 (2024-08-24)
+
+#### Changes
+
+  - Django 5.1 compatibilty, and Dropped Django 3.2 / Postgres 12 support by [@wesleykendall](https://github.com/wesleykendall) in [#14](https://github.com/Opus10/django-pgtransaction/pull/14).
+
 ## 1.3.2 (2024-04-23)
 
-### Trivial
+#### Trivial
 
   - Updated with latest Python template. [Wesley Kendall, c7a010c]
 
 ## 1.3.1 (2024-04-06)
 
-### Trivial
+#### Trivial
 
   - Fix ReadTheDocs builds. [Wesley Kendall, 7d60e2a]
 
 ## 1.3.0 (2023-11-26)
 
-### Feature
+#### Feature
 
   - Django 5.0 compatibility [Wesley Kendall, 129331b]
 
@@ -22,13 +28,13 @@
 
 ## 1.2.1 (2023-10-09)
 
-### Trivial
+#### Trivial
 
   - Added Opus10 branding to docs [Wesley Kendall, 4a0b78c]
 
 ## 1.2.0 (2023-10-08)
 
-### Feature
+#### Feature
 
   - Add Python 3.12 support and use Mkdocs for documentation [Wesley Kendall, ed0d18e]
 
@@ -38,7 +44,7 @@
 
 ## 1.1.0 (2023-06-09)
 
-### Feature
+#### Feature
 
   - Added Python 3.11, Django 4.2, and Psycopg 3 support [Wesley Kendall, 6c032bb]
 
@@ -46,7 +52,7 @@
 
 ## 1.0.0 (2022-09-20)
 
-### Api-Break
+#### Api-Break
 
   - Initial release of django-pgtransaction [Paul Gilmartin, 09bca27]
 
