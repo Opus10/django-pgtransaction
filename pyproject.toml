@@ -27,9 +27,9 @@ packages = [
 exclude = [
   "*/tests/"
 ]
-version = "1.4.0"
+version = "1.5.0"
 description = "A context manager/decorator which extends Django's atomic function with the ability to set isolation level and retries for a given transaction."
-authors = ["Opus 10 Engineering"]
+authors = ["Paul Gilmartin", "Wes Kendall"]
 classifiers = [
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
@@ -77,7 +77,6 @@ dj-database-url = "2.3.0"
 psycopg2-binary = "2.9.10"
 pytest-django = "4.9.0"
 django-dynamic-fixture = "4.0.1"
-
 
 [tool.pytest.ini_options]
 xfail_strict = true
